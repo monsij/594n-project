@@ -365,22 +365,3 @@ def get_per_class_count(y_test: list):
     for true_val in y_test:
         per_class_count[true_val] += 1
     return per_class_count
-
-def get_confusion_matrix(y_test : list, y_pred : list, target_class_list : list):
-    """
-    Returns pandas.DataFrame representing confusion matrix corresponding to y_test and y_pred
-    """
-    per_class_count = get_per_class_count(y_test=y_test)
-    cmat = confusion_matrix(y_test, y_pred, labels=target_class_list).astype('float')  # more data for SB
-    pos = 0 
-    for i in target_class_list:
-        cmat[pos,:] = cmat[pos,:] / per_class_count[i]
-        pos += 1
-
-    cmat = np.round(cmat,3)
-    index_l = ['true:' + class_name for class_name in target_class_list]
-    column_l = ['pred:' + class_name for class_name in target_class_list]
-    cmtx = pd.DataFrame(cmat, 
-    index=index_l, 
-    columns=column_l)
-    return cmtx
