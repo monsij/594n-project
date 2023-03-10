@@ -168,6 +168,7 @@ def load_Chapman_ECG(balanced : bool = False):
     """
     
     print("Loading denoised dataset of Chapman Shaoxing 12-lead ECG Data...")
+    print("Balanced = {}".format(balanced))
     usable_patient_ids = get_all_file_paths()
     init_labels()
     #usable_patient_ids = list(set(all_patient_ids) - set(exception_patient_ids))
@@ -190,16 +191,16 @@ def load_Chapman_ECG(balanced : bool = False):
 
     return mat, patient_ids, target
 
-def get_per_class_count(y_test: list):
+def get_per_class_count(labels: list):
     """
-    Returns dictionary of instance count in y_test
+    Returns dictionary of instance count in labels
     """
     per_class_count = {'SB':0,
                    'SR':0,
                    'ST':0,
                    'AFIB':0}
 
-    for true_val in y_test:
+    for true_val in labels:
         per_class_count[true_val] += 1
     return per_class_count
 
