@@ -1,5 +1,5 @@
 """
- * @author Monsij Biswal
+ * @author Monsij Biswal, Nima Namazi
  * @email mbiswal@ucsb.edu
  * @desc Utility functions for ECG dataset
  """
@@ -19,9 +19,6 @@ from sklearn.metrics import confusion_matrix
 
 manifold = spd.SPDMatrices(12)
 
-base_path = './WFDB/'
-
-
 WFDB_dict = {"426177001":"SB Sinus Bradycardia ", #  <--
             "426783006":"SR	Sinus Rhythm", #  <--
             "427084000":"ST	Sinus Tachycardia", #  <--
@@ -38,66 +35,67 @@ WFDB_dict = {"426177001":"SB Sinus Bradycardia ", #  <--
             "164931005":"STTU ST tilt up"
             }
 
-# classes for geometric ML
-class_labels = {"426177001":"SB",
-                "426783006":"SR",
-                "427084000":"ST",
-                "164889003":"AF"
-}
+#----------------- Functions for new dataset - prefixed by "dn" -----------------------#
 
-# contain 0-row which prevents corrcoef computation
-exception_patient_ids = ['JS05212','JS07788','JS01266','JS09412',
-                       'JS10480','JS00459','JS10475','JS10477',
-                        'JS02113','JS06200','JS04173','JS04957',
-                        'JS02826','JS01040','JS05815']
-
+dn_base_path = './ECGDataDenoisedMat/'
+diagnostics_path = './Diagnostics.xlsx'
+labels_dict = {}    # {patient_id : rhythm_acr}
+exception_patient_ids = ['MUSE_20181222_204118_08000', 'MUSE_20181222_204121_42000', 
+                         'MUSE_20181222_204122_52000', 'MUSE_20181222_204123_64000', 
+                         'MUSE_20181222_204128_13000', 'MUSE_20181222_204131_50000',
+                         'MUSE_20181222_204140_77000', 'MUSE_20181222_204141_91000', 
+                         'MUSE_20181222_204143_03000', 'MUSE_20181222_204146_34000', 
+                         'MUSE_20181222_204154_20000', 'MUSE_20181222_204155_31000', 
+                         'MUSE_20181222_204156_45000', 'MUSE_20181222_204157_58000', 
+                         'MUSE_20181222_204158_72000', 'MUSE_20181222_204207_92000', 
+                         'MUSE_20181222_204212_44000', 'MUSE_20181222_204217_03000', 
+                         'MUSE_20181222_204218_14000', 'MUSE_20181222_204219_27000', 
+                         'MUSE_20181222_204222_63000', 'MUSE_20181222_204226_00000', 
+                         'MUSE_20181222_204227_13000', 'MUSE_20181222_204236_34000', 
+                         'MUSE_20181222_204237_47000', 'MUSE_20181222_204239_70000', 
+                         'MUSE_20181222_204240_84000', 'MUSE_20181222_204243_08000', 
+                         'MUSE_20181222_204245_36000', 'MUSE_20181222_204246_47000', 
+                         'MUSE_20181222_204248_77000', 'MUSE_20181222_204249_88000', 
+                         'MUSE_20181222_204302_49000', 'MUSE_20181222_204303_61000', 
+                         'MUSE_20181222_204306_99000', 'MUSE_20181222_204309_22000', 
+                         'MUSE_20181222_204310_31000', 'MUSE_20181222_204312_58000', 
+                         'MUSE_20181222_204314_78000', 'MUSE_20181222_204132_64000']
 
 
 def get_all_file_paths():
     """
-    Returns list of all patient_ids
+    Returns list of all patient_ids : MUSE_{}_{}_{}
     """
     patient_ids = []
-    mat_files = glob.glob(base_path + '*.mat')
+    mat_files = glob.glob(dn_base_path + '*.mat')
     for path in mat_files:
         patient_ids.append(os.path.split(path)[-1][:-4])
-    return patient_ids
+    usable_patient_ids = list(set(patient_ids) - set(exception_patient_ids))
+    return usable_patient_ids
 
+def init_labels():
+    """
+    Creates global dictionary for labels of each patient. Call once
+    changes the globally defined labels_dict
+    """
+    diag_xlsx = pd.read_excel(diagnostics_path)
+    global labels_dict
+    labels_dict = dict(zip(diag_xlsx["FileName"], diag_xlsx["Rhythm"]))
+
+def get_rhythm_acr(patient_id : str):
+    """
+    Returns rhythm acr for a given patient id
+    """
+    return labels_dict[patient_id]
 
 def get_random_patient_id():
     """
     Returns a random patient_id from the basepath
     """
-    mat_files = glob.glob(base_path + '*.mat')
-    idx = np.random.randint(0, len(mat_files))
-    patient_id = os.path.split(mat_files[idx])[-1][:-4]
+    csv_files = glob.glob(dn_base_path + '*.mat')
+    idx = np.random.randint(0, len(csv_files))
+    patient_id = os.path.split(csv_files[idx])[-1][:-4]
     return patient_id
-
-def get_rhythm_id(patient_id : str):
-    """
-    Returns rhythm id for a given patient id
-    """
-    hea_file = open(base_path + patient_id + '.hea')
-    ids = hea_file.readlines()[15][5:].split(',')
-    if len(ids)==1:    # trimming \n depending on number of diagnoses
-        rhythm_id = ids[0][:-1]
-    else:
-        rhythm_id = ids[0]
-    return rhythm_id
-
-
-def get_single_data(patient_id : str = None):
-    """
-    Returns ECG data (12 x 5000) array for a patient along with rhythm name
-
-    If no patient_id is given, it returns for a  random patient in list
-    """
-    rhythm_acr = ""
-    if patient_id==None:
-        patient_id = get_random_patient_id()
-    ecg_data = scipy.io.loadmat(base_path+patient_id+'.mat')['val']
-    rhythm_name = WFDB_dict[get_rhythm_id(patient_id=patient_id)]
-    return ecg_data, rhythm_name
 
 def check_on_manifold(cov_mat : np.array):
     """
@@ -105,32 +103,21 @@ def check_on_manifold(cov_mat : np.array):
     """
     return(gs.all(manifold.belongs(cov_mat)))
 
-    #print("Percentage of cov mat on manifold: {:.2f}".format((on_manifold/num_files)*100))
-
-
-def compute_corr_mat(patient_id: str = None, plot_corr = True):
+def get_single_data(patient_id : str = None):
     """
-    Computes (and plots) correlation matrix (12 x 12) array for a patient with given id
+    Returns ECG data (12 x 5000) array for a patient
 
-    If no patient_id is given, it plots for a random patient in list
+    If no patient_id is given, it returns for a  random patient in list
     """
     if patient_id==None:
         patient_id = get_random_patient_id()
-    ecg_data, _ = get_single_data(patient_id)
-    curr_std = np.std(ecg_data, axis=1)
-
-    corr_mat = np.corrcoef(ecg_data)
-
+    ecg_data = scipy.io.loadmat(dn_base_path+patient_id+'.mat')['val']
+    #rhythm_acr = dn_get_rhythm_acr(patient_id=patient_id)
     
-    
-    if plot_corr:
-        plt.imshow(corr_mat, cmap='viridis', vmin=-1, vmax=1)
-        plt.colorbar()
-        plt.show()
+    ecg_data = ecg_data.T
+    return ecg_data
 
-    return corr_mat
-
-def plot_ecg(patient_id: str = None, lead:int = 0):
+def plot_ecg(patient_id: str = None, lead:int = -1):
     """
     Plots time series ECG data (5000 samples) at given lead and patient id
 
@@ -140,12 +127,12 @@ def plot_ecg(patient_id: str = None, lead:int = 0):
     """
     if patient_id==None:
         patient_id = get_random_patient_id()
-    data, _ = get_single_data(patient_id=patient_id)
+    data = get_single_data(patient_id=patient_id)
     
     fig = plt.gcf()
     fig.set_size_inches(12, 6)
 
-    if lead==0:
+    if lead==-1:
         for lead in range(12):
             plt.plot(data[lead,:])
     else:
@@ -156,62 +143,50 @@ def plot_ecg(patient_id: str = None, lead:int = 0):
     plt.ylabel('microV')
     plt.show()
 
-def get_patients_with_rhythm_id(rhythm_id: str=None):
-    result = []
-    patient_ids = get_all_file_paths()
-    for patient_id in patient_ids:
-        curr_rhythm_id = get_rhythm_id(patient_id=patient_id)
-        if curr_rhythm_id == rhythm_id:
-            result.append(patient_id)
-    return result
+def compute_corr_mat(patient_id : str, plot_corr : bool = False):
+    if patient_id==None:
+        patient_id = get_random_patient_id()
+    ecg_data = get_single_data(patient_id)
+    curr_std = np.std(ecg_data, axis=1)
+    if np.any(curr_std==0):
+        print(patient_id)
+    corr_mat = np.corrcoef(ecg_data)
+    if np.any(curr_std==0):
+        print("Zero std found for : ", patient_id)
+    corr_mat = np.corrcoef(ecg_data)
 
-def load_Chapman_ECG(num_classes, target_class_list, as_vectors=False,):
-    """Load data from Chapman ECG dataset.
+    if plot_corr:
+        plt.imshow(corr_mat, cmap='viridis', vmin=-1, vmax=1)
+        plt.colorbar()
+        plt.show()
 
-    Parameters
-    ----------
-    as_vectors : bool
-        Whether to return raw data as vectors or as symmetric matrices.
-        Optional, default: False
+    return corr_mat
 
-    Returns
-    -------
-    mat : array-like, shape=[9049, {[12, 12], 144}
-        Connectomes.
-    patient_ids : array-like, shape=[9049,]
-        Patient unique identifiers
-    target : array-like, shape=[9049,]
-        Labels, whether patients belong to one of the four classes. 
-        See class_labels
-    num_classes : int
-        No.of different classes data can belong
-    target_class_list : list, len = num_classes
-        Acronyms of required target classes
-    
-        
-    class_list only among ["SB", "SR", "ST", "AF"]
-    No.of relevant files for top-4 classes = 9049
+def load_Chapman_ECG(balanced : bool = False):
     """
-    if as_vectors:
-        print('Not implemented for as_vectors=True')
-    try:
-        assert(len(target_class_list)==num_classes)
-    except:
-        print("Length of target_class_list must be equal to {}".format(num_classes))
-        return
-    print("Loading Chapman Shaoxing 12-lead ECG Data...",
-          "\nUnpacking data for {} classes only".format(num_classes))
-    all_patient_ids = get_all_file_paths()
-    usable_patient_ids = list(set(all_patient_ids) - set(exception_patient_ids)) 
+
+    """
+    
+    print("Loading denoised dataset of Chapman Shaoxing 12-lead ECG Data...")
+    usable_patient_ids = get_all_file_paths()
+    init_labels()
+    #usable_patient_ids = list(set(all_patient_ids) - set(exception_patient_ids))
+    per_class_count  = np.zeros(4)     # target = 1564
+    class_ids = {"SB": 0, "ST": 1, "SR": 2, "AFIB": 3} 
     mat, patient_ids, target = [], [], []
     for patient_id in tqdm(usable_patient_ids):
         tmp = np.zeros((12,12))
-        if get_rhythm_id(patient_id=patient_id) in class_labels.keys():
-            if class_labels[get_rhythm_id(patient_id=patient_id)] in target_class_list:
-                tmp = compute_corr_mat(patient_id=patient_id, plot_corr=False)
+        curr_rhythm_acr = get_rhythm_acr(patient_id=patient_id)
+        if curr_rhythm_acr in ["AFIB", "SB", "SR", "ST"]:
+            if per_class_count[class_ids[curr_rhythm_acr]]==1564 and balanced:
+                continue    
+            tmp = compute_corr_mat(patient_id=patient_id, plot_corr=False)
+            if manifold.belongs(tmp):    # add to list if tmp lies on spd manifold
                 mat.append(tmp)
-                target.append(class_labels[get_rhythm_id(patient_id=patient_id)])
+                target.append(curr_rhythm_acr)
                 patient_ids.append(patient_id)
+                if balanced:
+                    per_class_count[class_ids[curr_rhythm_acr]] += 1
 
     return mat, patient_ids, target
 
@@ -222,7 +197,7 @@ def get_per_class_count(y_test: list):
     per_class_count = {'SB':0,
                    'SR':0,
                    'ST':0,
-                   'AF':0}
+                   'AFIB':0}
 
     for true_val in y_test:
         per_class_count[true_val] += 1
@@ -245,123 +220,3 @@ def get_confusion_matrix(y_test : list, y_pred : list, target_class_list : list)
     index=index_l, 
     columns=column_l)
     return cmtx
-
-
-#----------------- Functions for new dataset - prefixed by "dn" -----------------------#
-
-dn_base_path = './ECGDataDenoisedMat/'
-diagnostics_path = './Diagnostics.xlsx'
-labels_dict = {}    # {patient_id : rhythm_acr}
-
-
-def dn_get_all_file_paths():
-    """
-    Returns list of all patient_ids : MUSE_{}_{}_{}
-    """
-    patient_ids = []
-    mat_files = glob.glob(dn_base_path + '*.mat')
-    for path in mat_files:
-        patient_ids.append(os.path.split(path)[-1][:-4])
-    return patient_ids
-
-def init_labels():
-    """
-    Creates global dictionary for labels of each patient. Call once
-    changes the globally defined labels_dict
-    """
-    diag_xlsx = pd.read_excel(diagnostics_path)
-    global labels_dict
-    labels_dict = dict(zip(diag_xlsx["FileName"], diag_xlsx["Rhythm"]))
-
-def dn_get_rhythm_acr(patient_id : str):
-    """
-    Returns rhythm acr for a given patient id
-    """
-    return labels_dict[patient_id]
-
-def dn_get_random_patient_id():
-    """
-    Returns a random patient_id from the basepath
-    """
-    csv_files = glob.glob(dn_base_path + '*.mat')
-    idx = np.random.randint(0, len(csv_files))
-    patient_id = os.path.split(csv_files[idx])[-1][:-4]
-    return patient_id
-
-def dn_get_single_data(patient_id : str = None):
-    """
-    Returns ECG data (12 x 5000) array for a patient
-
-    If no patient_id is given, it returns for a  random patient in list
-    """
-    if patient_id==None:
-        patient_id = dn_get_random_patient_id()
-    ecg_data = scipy.io.loadmat(dn_base_path+patient_id+'.mat')['val']
-    #rhythm_acr = dn_get_rhythm_acr(patient_id=patient_id)
-    
-    ecg_data = ecg_data.T
-    return ecg_data
-
-def dn_compute_corr_mat(patient_id : str, plot_corr : bool = False):
-    if patient_id==None:
-        patient_id = dn_get_random_patient_id()
-    ecg_data = dn_get_single_data(patient_id)
-    curr_std = np.std(ecg_data, axis=1)
-    if np.any(curr_std==0):
-        print(patient_id)
-    corr_mat = np.corrcoef(ecg_data)
-    if np.any(curr_std==0):
-        print("Zero std found for : ", patient_id)
-    corr_mat = np.corrcoef(ecg_data)
-
-    if plot_corr:
-        plt.imshow(corr_mat, cmap='viridis', vmin=-1, vmax=1)
-        plt.colorbar()
-        plt.show()
-
-    return corr_mat
-
-
-
-def dn_load_Chapman_ECG():
-    """
-
-    """
-    
-    print("Loading denoised dataset of Chapman Shaoxing 12-lead ECG Data...")
-    all_patient_ids = dn_get_all_file_paths()
-    init_labels()
-    #usable_patient_ids = list(set(all_patient_ids) - set(exception_patient_ids)) 
-    mat, patient_ids, target = [], [], []
-    for patient_id in tqdm(all_patient_ids):
-        tmp = np.zeros((12,12))
-        if dn_get_rhythm_acr(patient_id=patient_id) in ["AFIB", "SB", "SR", "ST"]:
-                tmp = dn_compute_corr_mat(patient_id=patient_id, plot_corr=False)
-                if manifold.belongs(tmp):    # add to list if tmp lies on spd manifold
-                    mat.append(tmp)
-                    target.append(dn_get_rhythm_acr(patient_id=patient_id))
-                    patient_ids.append(patient_id)
-
-    return mat, patient_ids, target
-
-
-def load_mat(patient_id : str):
-    """
-    can delete
-    Convert .csv ecg datafile to .mat (maybe faster) ?
-    """
-    ecg_data = scipy.io.loadmat('./ECGDataDenoisedMat/' +patient_id+'.mat')['val']
-    print(ecg_data[0,:])
-
-def get_per_class_count(y_test: list):
-    """
-    Returns dictionary of instance count in y_test
-    """
-    per_class_count = {'SB':0,
-                   'SR':0,
-                   'ST':0,
-                   'AFIB':0}
-
-    for true_val in y_test:
-        per_class_count[true_val] += 1
-    return per_class_count
