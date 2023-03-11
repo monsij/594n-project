@@ -16,6 +16,9 @@ import matplotlib.pyplot as plt
 import sys
 from tqdm import tqdm
 from sklearn.metrics import confusion_matrix
+import gdown
+import tarfile
+import shutil
 
 manifold = spd.SPDMatrices(12)
 
@@ -162,13 +165,41 @@ def compute_corr_mat(patient_id : str, plot_corr : bool = False):
 
     return corr_mat
 
-def load_Chapman_ECG(balanced : bool = False):
+def load_fulldataset():
     """
+    Downloads complete dataset containing .mat files
+
+    [1] Zheng, Jianwei, Jianming Zhang, Sidy Danioko, Hai Yao, Hangyuan Guo, and Cyril Rakovski. 
+    “A 12-Lead Electrocardiogram Database for Arrhythmia Research Covering More than 10,000 Patients.” 
+    Scientific Data 7, no. 1 (February 12, 2020): 48. https://doi.org/10.1038/s41597-020-0386-x.
+    """
+    # 1h7bmbY8etxq5Cqa-AVPgjZT2EsxThuyi
+    # small 1RJEZx0upCTAqPUiA5KbmA3rYZ3TYVeM9
+    url = 'https://drive.google.com/uc?id=1h7bmbY8etxq5Cqa-AVPgjZT2EsxThuyi'
+    d_file = 'ECGDataDenoisedMat.tar.gz'
+    gdown.download(url, d_file, quiet=False)
+    shutil.rmtree('./ECGDataDenoisedMat')
+    archive_file = tarfile.open(d_file)
+    archive_file.extractall('')
+    process = subprocess.Popen(['rm', d_file])
+
+
+
+def load_Chapman_ECG(balanced : bool = False, load_sample : bool = False):
+    """
+    balanced: only works if load_sample = False
 
     """
+    if load_sample:
+        print("Loading sample denoised dataset of Chapman Shaoxing 12-lead ECG Data...\n"
+              "Using cached ./ECGDataDenoisedMat/")
+    else:
+        print("Loading complete denoised dataset of Chapman Shaoxing 12-lead ECG Data...\n"
+              "Updating ./ECGDataDenoisedMat/")
+        load_fulldataset()
     
-    print("Loading denoised dataset of Chapman Shaoxing 12-lead ECG Data...")
     print("Balanced = {}".format(balanced))
+
     usable_patient_ids = get_all_file_paths()
     init_labels()
     #usable_patient_ids = list(set(all_patient_ids) - set(exception_patient_ids))
